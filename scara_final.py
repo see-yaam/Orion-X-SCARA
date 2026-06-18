@@ -91,6 +91,7 @@ class MoveCommand:
     jaw_deg: float
 
     def to_serial(self) -> str:
+        # Serial packet protocol format: MOVE,J1,J2,Z,JAW\n (Angles in degrees, delimited by commas)
         return (
             f"MOVE,{self.j1_deg:.2f},"
             f"{self.j2_deg:.2f},"
@@ -316,6 +317,7 @@ def open_serial() -> Optional["serial.Serial"]:
 
 
 def pixel_to_robot_mm(pixel_x: float, pixel_y: float, homography: np.ndarray) -> Tuple[float, float]:
+    # Apply 3x3 homography matrix transformation to project 2D camera pixels into physical robot coordinates (mm)
     point = np.asarray([[[pixel_x, pixel_y]]], dtype=np.float32)
     world = cv2.perspectiveTransform(point, homography)[0, 0]
     return float(world[0]), float(world[1])
@@ -331,7 +333,7 @@ def calculate_inverse_kinematics_mm(x_mm: float, y_mm: float) -> Optional[Tuple[
 
     r = math.sqrt(x_mm**2 + y_mm**2)
 
-    # Reach limit checkpoint
+    # Reach limit checkpoint: Verify if target falls within the reachable workspace envelope
     if r > l1 + l2 or r < abs(l1 - l2):
         print(f"Target Out of Reach: X={x_mm:.1f} mm, Y={y_mm:.1f} mm")
         return None
@@ -341,6 +343,7 @@ def calculate_inverse_kinematics_mm(x_mm: float, y_mm: float) -> Optional[Tuple[
 
     angle2 = math.acos(cos_angle2)
 
+    # Geometric calculation for Joint 1 angle (Base) relative to target vector
     k1 = l1 + l2 * math.cos(angle2)
     k2 = l2 * math.sin(angle2)
     angle1 = math.atan2(y_mm, x_mm) - math.atan2(k2, k1)
