@@ -1,5 +1,6 @@
 """
-Camera-to-robot homography calibration tool for a SCARA pick-and-place system.
+Camera-to-Robot Homography Calibration Interface for SCARA Systems. 
+Generates a 3x3 transformation matrix projecting 2D viewport coordinates (pixels) to physical planar task space (mm).
 
 Workflow:
 1. Click calibration points on the live overhead camera image.
