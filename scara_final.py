@@ -1,8 +1,8 @@
 """
 SCARA YOLO11 Locked-Snapshot Pick-and-Place Controller
 ------------------------------------------------------
-Optimized with Siam's Verified Perfect IK Engine & Ultra-Fast Dynamic 7-Step Sequence.
-Featuring Dual-Mode Dynamic Sorting (Shape / Colour Selector Layout).
+Optimized with verified inverse kinematics (IK) engine and high-speed dynamic 7-step sequence. 
+Features dual-mode dynamic sorting based on shape and color selection.
 
 Robot architecture:
     Motor 1: Base Stepper
@@ -38,18 +38,18 @@ except ImportError:
 # Configuration
 # =============================================================================
 
-YOLO_MODEL_PATH = Path(r"D:\PycharmProjects\opencv\runs\detect\train\weights\best.pt")
-CALIBRATION_FILE = Path(__file__).with_name("calibration_matrix.npy")
+YOLO_MODEL_PATH = Path(r"D:\PycharmProjects\opencv\runs\detect\train\weights\best.pt") # Add your best.pt file's path here
+CALIBRATION_FILE = Path(__file__).with_name("calibration_matrix.npy") # Add your calibration matrix here
 
-SERIAL_PORT = "COM5"
+SERIAL_PORT = "COM5" # You can update it according to your port
 SERIAL_BAUDRATE = 115200
 SERIAL_TIMEOUT_SECONDS = 0.01
 
-CAMERA_INDEX = 2
+CAMERA_INDEX = 2 # You can update it according to your port
 CONFIDENCE_THRESHOLD = 0.60
 WINDOW_NAME = "SCARA YOLO11 Locked Snapshot Controller"
 
-# Homography output is already in millimeters.
+# Elbow length
 L1_MM = 290.0
 L2_MM = 180.0
 
@@ -114,10 +114,10 @@ class NonBlockingScaraController:
         self.sim_done_time = 0.0
         self.last_serial_line = ""
 
-        # 🎯 Siam's Speed Patch: ব্যাচের প্রথম অবজেক্ট ট্র্যাক করার ফ্ল্যাগ
+        # Track if the current object is the first item in the batch for acceleration tuning
         self.is_first_of_batch = True
 
-        # 🎯 Sorting Mode Flag: None, "SHAPE", or "COLOUR"
+        # Sorting criterion configuration: None, "SHAPE", or "COLOUR"
         self.sorting_mode: Optional[str] = None
 
     def start_jobs(self, detections_snapshot: List[Detection]) -> None:
@@ -131,14 +131,14 @@ class NonBlockingScaraController:
 
         self.job_queue = list(detections_snapshot)
 
-        # 🎯 নতুন ব্যাচ শুরু হলে ফ্ল্যাগ রি-সেট হবে
+        # Reset first-in-batch flag upon initializing a new detection queueে
         self.is_first_of_batch = True
 
         print(f"Locked snapshot queue with {len(self.job_queue)} target(s) for {self.sorting_mode} sorting.")
         self.start_next_job()
 
     def start_next_job(self) -> None:
-        # 🎯 Siam's Smart Queue Logic: কিউ এবং একটিভ টার্গেট দুইটাই খালি হলে তবেই হোমে যাবে
+        # Return to home position only when both the job queue and active target are emptyে
         if not self.job_queue and self.active_target is None:
             self.active_target = None
             self.command_queue = build_home_sequence()
@@ -146,20 +146,20 @@ class NonBlockingScaraController:
             self.send_next_command()
             return
 
-        # যদি কিউ খালি হয় কিন্তু এখনো একটিভ কমান্ড চলছে, তবে হোমে যাবে না, ফাংশন রিটার্ন করবে
+        # Prevent homing if the queue is exhausted but active command execution is pendingে
         if not self.job_queue and self.active_command is not None:
             return
 
         self.active_target = self.job_queue.pop(0)
 
-        # 🎯 কারেন্ট অ্যাক্টিভ সর্টিং মোডসহ সিকোয়েন্স বিল্ডারে ডেটা পাঠানো হচ্ছে
+        # Generate motion sequence passing the currently selected sorting modeছে
         commands = build_safe_pick_place_sequence(
             self.active_target,
             is_first=self.is_first_of_batch,
             sorting_mode=self.sorting_mode
         )
 
-        # ১ম অবজেক্টের সিকোয়েন্স জেনারেট হয়ে যাওয়ার পর ফ্ল্যাগ False হয়ে যাবে
+        # Clear first-in-batch flag once the initial item sequence is generated
         self.is_first_of_batch = False
 
         if commands is None:
@@ -325,8 +325,7 @@ def pixel_to_robot_mm(pixel_x: float, pixel_y: float, homography: np.ndarray) ->
 
 def calculate_inverse_kinematics_mm(x_mm: float, y_mm: float) -> Optional[Tuple[float, float]]:
     """
-    ⚡ FIXED: Siam's Verified Perfect IK Engine ⚡
-    Perfect physical J2 negative motor mapping implemented.
+Calculates 2-DOF SCARA inverse kinematics with inverted J2 motor mapping adjustment.
     """
     l1 = L1_MM
     l2 = L2_MM
@@ -349,7 +348,7 @@ def calculate_inverse_kinematics_mm(x_mm: float, y_mm: float) -> Optional[Tuple[
     angle1 = math.atan2(y_mm, x_mm) - math.atan2(k2, k1)
 
     q1_deg = math.degrees(angle1)
-    q2_deg = -math.degrees(angle2)  # Siam's Hardware J2 Direction Fix Patch
+    q2_deg = -math.degrees(angle2)  # Correct J2 rotation direction to match hardware kinematics
 
     return q1_deg, q2_deg
 
@@ -398,35 +397,34 @@ def run_yolo_detections(frame: np.ndarray, model: YOLO, homography: np.ndarray) 
 
 def build_safe_pick_place_sequence(target: Detection, is_first: bool, sorting_mode: Optional[str]) -> Optional[List[MoveCommand]]:
     """
-    ⚡ DYNAMIC OPTIMIZED SORTING TIMELINE ⚡
-    Siam's Logic: Dynamic Drop Zone mappings applied based on 'shape_color' parsing.
+Builds a 7-step pick-and-place instruction sequence based on dynamic drop zone mapping.
     """
-    # অবজেক্টের নাম স্প্লিট করে শেপ এবং কালার ফিল্টার করা (যেমন: 'circle_orange' -> ['circle', 'orange'])
+    # Parse object class name into shape and color attributes (e.g., 'circle_orange')
     parts = target.class_name.lower().split('_')
     obj_shape = parts[0] if len(parts) > 0 else ""
     obj_color = parts[1] if len(parts) > 1 else ""
 
-    # ডিফল্ট ড্রপ কোঅর্ডিনেট সেটআপ
+    # Initialize fallback drop coordinates
     drop_x = DROP_X_MM
     drop_y = DROP_Y_MM
 
-    # 🎯 ১. কালার শর্টিং ম্যাপিং লজিক
+    # Case 1: Color-based sorting matrix
     if sorting_mode == "COLOUR":
         if "orange" in obj_color:
             drop_x, drop_y = -200.0, 400.0
         elif "blue" in obj_color:
             drop_x, drop_y = -200.0, 170.0
 
-    # 🎯 ২. শেপ শর্টিং ম্যাপিং লজিক
+    # Case 2: Shape-based sorting matrix
     elif sorting_mode == "SHAPE":
         if "circle" in obj_shape:
             drop_x, drop_y = -200.0, 280.0
         elif "square" in obj_shape:
             drop_x, drop_y = -200.0, 400.0
-        elif "rect" in obj_shape:  # 'rectangular' এবং 'rectanguler' দুইটাই হ্যান্ডেল করবে
+        elif "rect" in obj_shape:  # Handle spelling variations for rectangular geometries
             drop_x, drop_y = -200.0, 170.0
 
-    # টার্গেট ড্রপ জোনের আইকে (IK) হিসাব
+    # Compute target kinematics for the evaluated drop location
     drop_ik = calculate_inverse_kinematics_mm(drop_x, drop_y)
 
     if drop_ik is None:
@@ -436,11 +434,11 @@ def build_safe_pick_place_sequence(target: Detection, is_first: bool, sorting_mo
     drop_j1, drop_j2 = drop_ik
     commands = []
 
-    # কেবল ১ম অবজেক্টের জন্য হোম (0,0) থেকে Z অক্ষ ওপরে তুলবে।
+    # Perform safety lift from home coordinates only for the first object in sequence
     if is_first:
         commands.append(MoveCommand("1 Safety Lift From Home", HOME_J1_DEG, HOME_J2_DEG, Z_HIGH_DEG, JAW_OPEN))
 
-    # বাকি মেইন গতিশীল সিকোয়েন্স:
+    # Remaining 6-step pick, lift, and place sequence
     commands.extend([
         MoveCommand("2 Move Above Object", target.j1_deg, target.j2_deg, Z_HIGH_DEG, JAW_OPEN),
         MoveCommand("3 Descend to Object", target.j1_deg, target.j2_deg, Z_LOW_DEG, JAW_OPEN),
@@ -465,13 +463,13 @@ def draw_overlay(
     detections: List[Detection],
     controller: NonBlockingScaraController,
 ) -> None:
-    # 🎯 Siam's Cinematic Transparent Overlay Patch
+    # Render semi-transparent dark status bar at the top of the viewport
     overlay = frame.copy()
     cv2.rectangle(overlay, (8, 8), (950, 76), (0, 0, 0), -1)  # ওপরে কালো বক্স
-    alpha = 0.4  # ট্রান্সপারেন্সির পরিমাণ (৪০% কালো, ৬০% স্বচ্ছ)
+    alpha = 0.4  # Define opacity ratio for heads-up-display overlay
     cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
-    # মোড সিলেক্ট করা না থাকলে স্ক্রিনে গাইডলাইন প্রিন্ট হবে এবং কোন বাউন্ডিং বক্স দেখাবে না
+    # Prompt user to select configuration criteria if sorting mode is undefined
     if controller.sorting_mode is None:
         cv2.putText(
             frame,
@@ -493,7 +491,7 @@ def draw_overlay(
         )
         return
 
-    # মোড সিলেক্টেড থাকলে অবজেক্টের বাউন্ডিং বক্স রেন্ডার হবে
+    # Render bounding boxes and targets when sorting mode is active
     for index, detection in enumerate(detections, start=1):
         x1, y1, x2, y2 = detection.box_xyxy
         center_x, center_y = detection.center_px
@@ -569,7 +567,7 @@ def main() -> int:
                 print("Camera frame read failed.")
                 break
 
-            # 🎯 মোড যদি সিলেক্টেড থাকে এবং রোবট আইডিয়াল থাকে তবেই কেবল YOLO ডিটেকশন রান করবে
+            # Execute YOLO inference only if a sorting criteria is active and the arm is idleে
             if controller.sorting_mode is not None and controller.state == STATE_IDLE:
                 latest_detections = run_yolo_detections(frame, model, homography)
             else:
@@ -586,7 +584,7 @@ def main() -> int:
             if key == ord("q"):
                 break
 
-            # 🎯 'r' প্রেস করলে মোড রিসেট হয়ে আবার মেনু অপশনে ব্যাক করবে
+            # Keybind 'r': Reset runtime parameters and return to workflow selector
             if key == ord("r"):
                 if controller.state == STATE_IDLE:
                     controller.sorting_mode = None
@@ -594,15 +592,15 @@ def main() -> int:
                 else:
                     print("Robot is busy. Cannot reset mode right now.")
 
-            # 🎯 কিবোর্ড লজিক হ্যান্ডেলিং (স্টেট এবং মোড এর ওপর ভিত্তি করে)
+            # Handle conditional operational flags for UI control
             if key == ord("s"):
-                # প্রথম কেস: মোড এখনো সিলেক্ট হয়নি, তাই 's' প্রেস মানে SHAPE মোড অন করা
+                # Context 1: Set operation profile to shape-based sorting
                 if controller.sorting_mode is None:
                     controller.sorting_mode = "SHAPE"
                     print("Workflow Activated: Sorting by SHAPE. YOLO initiated.")
                     continue
 
-                # দ্বিতীয় কেস: মোড অলরেডি অন আছে, এখন 's' প্রেস মানে স্ন্যাপশট লক করা
+                # দ্# Context 2: Lock current detection frame as static job queue by pressing 's'
                 if controller.state != STATE_IDLE:
                     print("Robot is busy. Wait for current locked queue to finish.")
                     continue
@@ -616,7 +614,7 @@ def main() -> int:
                 controller.start_jobs(locked_snapshot)
 
             elif key == ord("c"):
-                # মোড সিলেক্ট না হয়ে থাকলে 'c' প্রেস মানে COLOUR মোড অন করা
+                # ম# Context 3: Set operation profile to color-based sorting by pressing 'c'
                 if controller.sorting_mode is None:
                     controller.sorting_mode = "COLOUR"
                     print("Workflow Activated: Sorting by COLOUR. YOLO initiated.")
