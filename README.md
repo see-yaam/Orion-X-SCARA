@@ -68,10 +68,16 @@ $$\theta_4 = \phi - (\theta_1 + \theta_2)$$
 ## 📁 Repository Structure
 
 ```text
-├── arduino_control/
-│   └── arduino_control.ino    # Hardware firmware for stepper sequence generation
-├── data.yaml                  # Roboflow dataset configuration mapping
-├── train_yolo11.py            # Custom training pipeline script
-├── main.py                    # Main control loop (YOLO + IK + Serial communication)
-├── best.pt                    # Custom trained YOLOv11 weights (Object detector)
-└── README.md                  # System documentation
+├── Arduino Control/
+│   └── ScaraArmControllerPySerial.ino  # The arduino Code
+├── Shape and Colour.v2i.yolov11/       # Custom image dataset pipeline
+│   ├── test/                           
+│   ├── train/                          
+│   ├── valid/                          
+│   ├── README.dataset.txt              
+│   ├── README.roboflow.txt             
+│   └── data.yaml                       # YOLO model dataset configuration mapping
+├── calibration.py                      # Spatial homography & grid calibration module
+├── scara_final.py                      # Main real-time automation loop and SCARA's main GUI Interface(AI + IK + Serial)
+├── yolo11n.pt                          # Custom trained YOLOv11 object detection weights
+└── README.md                           # System documentation and setup guide
