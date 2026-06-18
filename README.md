@@ -1,4 +1,4 @@
-# 4-DOF SCARA Robotic Arm with AI Vision Object Sorting
+# 4-DOF SCARA Robotic Arm with Dual mode Object Sorting
 
 An advanced, open-architecture **4-DOF SCARA (Selective Compliance Assembly Robot Arm)** designed for automated industrial pick-and-place sorting operations. This system integrates real-time Object Detection using **YOLOv11** with custom analytical **Inverse Kinematics (IK)** to map coordinates dynamically from a 2D camera frame to physical robotic joint angles.
 
@@ -78,6 +78,6 @@ $$\theta_4 = \phi - (\theta_1 + \theta_2)$$
 │   ├── README.roboflow.txt             
 │   └── data.yaml                       # YOLO model dataset configuration mapping
 ├── calibration.py                      # Spatial homography & grid calibration module
-├── scara_final.py                      # Main real-time automation loop and SCARA's main GUI Interface(AI + IK + Serial)
+├── scara_final.py                      # Main real-time automation loop and SCARA's main GUI Interface(ML + IK + Serial)
 ├── yolo11n.pt                          # Custom trained YOLOv11 object detection weights
 └── README.md                           # System documentation and setup guide
