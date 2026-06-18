@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 6
+names: ['circle_blue', 'circle_orange', 'rectangle_blue', 'rectangle_orange', 'square_blue', 'square_orange']
+
+roboflow:
+  workspace: abdur-rahman-bhuyan
+  project: shape-and-colour
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/abdur-rahman-bhuyan/shape-and-colour/dataset/2

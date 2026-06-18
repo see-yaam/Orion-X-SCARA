@@ -53,8 +53,8 @@ $$\theta_4 = \phi - (\theta_1 + \theta_2)$$
 ### Hardware Architecture:
 * **Actuators:** NEMA 17 Stepper Motors (High Torque).
 * **Motor Drivers:** A4988 / TMC2209 Electronic Drivers configured with microstepping for smooth acceleration profiles.
-* **Microcontroller:** Arduino Uno / Mega (Acts as the hard real-time step generator).
-* **Vision Sensor:** Full HD USB Webcam.
+* **Microcontroller:** Arduino Uno (Acts as the hard real-time step generator).
+* **Vision Sensor:** USB Webcam.
 * **Mechanical Structure:** Custom-fabricated 4-DOF SCARA Framework.
 
 ### Software Stack:
