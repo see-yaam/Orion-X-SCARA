@@ -3,11 +3,11 @@ Camera-to-robot homography calibration tool for a SCARA pick-and-place system.
 
 Workflow:
 1. Click calibration points on the live overhead camera image.
-2. Type the matching real robot-surface coordinates in centimeters.
+2. Type the matching real robot-surface coordinates in milimeters.
 3. Save calibration. The script writes calibration_matrix.npy beside this file.
 
 The saved 3x3 homography maps:
-    pixel coordinate (x_pixel, y_pixel) -> real coordinate (X_cm, Y_cm)
+    pixel coordinate (x_pixel, y_pixel) -> real coordinate (X_mm, Y_mm)
 """
 
 from __future__ import annotations
