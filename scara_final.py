@@ -131,14 +131,14 @@ class NonBlockingScaraController:
 
         self.job_queue = list(detections_snapshot)
 
-        # Reset first-in-batch flag upon initializing a new detection queueে
+        # Reset first-in-batch flag upon initializing a new detection queue
         self.is_first_of_batch = True
 
         print(f"Locked snapshot queue with {len(self.job_queue)} target(s) for {self.sorting_mode} sorting.")
         self.start_next_job()
 
     def start_next_job(self) -> None:
-        # Return to home position only when both the job queue and active target are emptyে
+        # Return to home position only when both the job queue and active target are empty
         if not self.job_queue and self.active_target is None:
             self.active_target = None
             self.command_queue = build_home_sequence()
@@ -146,13 +146,13 @@ class NonBlockingScaraController:
             self.send_next_command()
             return
 
-        # Prevent homing if the queue is exhausted but active command execution is pendingে
+        # Prevent homing if the queue is exhausted but active command execution is pending
         if not self.job_queue and self.active_command is not None:
             return
 
         self.active_target = self.job_queue.pop(0)
 
-        # Generate motion sequence passing the currently selected sorting modeছে
+        # Generate motion sequence passing the currently selected sorting mode
         commands = build_safe_pick_place_sequence(
             self.active_target,
             is_first=self.is_first_of_batch,
@@ -465,7 +465,7 @@ def draw_overlay(
 ) -> None:
     # Render semi-transparent dark status bar at the top of the viewport
     overlay = frame.copy()
-    cv2.rectangle(overlay, (8, 8), (950, 76), (0, 0, 0), -1)  # ওপরে কালো বক্স
+    cv2.rectangle(overlay, (8, 8), (950, 76), (0, 0, 0), -1)
     alpha = 0.4  # Define opacity ratio for heads-up-display overlay
     cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
@@ -567,7 +567,7 @@ def main() -> int:
                 print("Camera frame read failed.")
                 break
 
-            # Execute YOLO inference only if a sorting criteria is active and the arm is idleে
+            # Execute YOLO inference only if a sorting criteria is active and the arm is idle
             if controller.sorting_mode is not None and controller.state == STATE_IDLE:
                 latest_detections = run_yolo_detections(frame, model, homography)
             else:
