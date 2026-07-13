@@ -131,7 +131,7 @@ class NonBlockingScaraController:
 
         self.job_queue = list(detections_snapshot)
 
-        # Reset first-in-batch flag upon initializing a new detection queueে
+        # Reset first-in-batch flag upon initializing a new detection queue
         self.is_first_of_batch = True
 
         print(f"Locked snapshot queue with {len(self.job_queue)} target(s) for {self.sorting_mode} sorting.")
