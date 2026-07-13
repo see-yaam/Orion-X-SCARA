@@ -81,3 +81,59 @@ $$\theta_4 = \phi - (\theta_1 + \theta_2)$$
 ├── scara_final.py                      # Main real-time automation loop and SCARA's main GUI Interface(ML + IK + Serial)
 ├── yolo11n.pt                          # Custom trained YOLOv11 object detection weights
 └── README.md                           # System documentation and setup guide
+```
+
+---
+
+## ⚙️ Installation & Setup Guide
+
+Follow these steps to get the arm running from a fresh clone.
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/see-yaam/Orion-X-SCARA.git
+cd Orion-X-SCARA
+```
+
+### 2. Set Up a Virtual Environment (Recommended)
+```bash
+# Create a virtual environment
+python -m venv .venv
+
+# Activate the environment (Windows)
+.venv\Scripts\activate
+
+# Activate the environment (Mac/Linux)
+source .venv/bin/activate
+```
+
+### 3. Install Required Dependencies
+```bash
+pip install ultralytics opencv-python pyserial numpy
+```
+
+### 4. Hardware Setup
+1. Connect your Arduino Uno to your computer via USB.
+2. Open the Arduino IDE and load `Arduino Control/ScaraArmControllerPySerial.ino`.
+3. Verify and upload the sketch to your board.
+4. Note which serial port the Arduino connects to (e.g. `COM5` on Windows, or `/dev/ttyUSB0` / `/dev/cu.usbmodemXXXX` on Mac/Linux) — you'll need it in the next step.
+
+### 5. Configure File Paths
+Before running, open `scara_final.py` and update these variables near the top of the file to match your setup:
+* `YOLO_MODEL_PATH` → path to your trained `best.pt` weights file
+* `CALIBRATION_FILE` → path to your `calibration_matrix.npy` (generated in the next step)
+* `SERIAL_PORT` → the port you noted in the hardware setup step
+* `CAMERA_INDEX` → your webcam's device index (usually `0`, but try `1` or `2` if it opens the wrong camera)
+
+### 6. Run Camera Calibration (One-time setup)
+Generate the homography matrix that maps camera pixels to real-world millimeters:
+```bash
+python calibration.py
+```
+This produces `calibration_matrix.npy`, which `scara_final.py` needs to run — skipping this step will cause the main script to fail on startup.
+
+### 7. Run the System
+With the Arduino connected and calibration done, launch the main control interface:
+```bash
+python scara_final.py
+```
