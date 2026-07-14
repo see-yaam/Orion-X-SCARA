@@ -1,7 +1,19 @@
-# 4-DOF SCARA Robotic Arm with Dual mode Object Sorting
-
+# 4-DOF SCARA Robotic Arm with Dual Mode Object Sorting
+ 
 An advanced, open-architecture **4-DOF SCARA (Selective Compliance Assembly Robot Arm)** designed for automated industrial pick-and-place sorting operations. This system integrates real-time Object Detection using **YOLOv11** with custom analytical **Inverse Kinematics (IK)** to map coordinates dynamically from a 2D camera frame to physical robotic joint angles.
-
+ 
+---
+ 
+## 🧩 Problem Statement
+ 
+Picture a beverage bottling factory that produces multiple flavours across multiple bottle sizes on the same line. At some point in the process, batches get mixed — different flavours and sizes end up jumbled together on the same conveyor or storage crate. Sorting this by hand is slow, repetitive, and error-prone, especially at any real production volume.
+ 
+This project tackles that problem with a camera-guided SCARA arm capable of **dual-mode sorting**:
+ 
+* **Colour-based sorting** — bottle colour maps to flavour (e.g. red → strawberry, orange → orange, purple → grape).
+* **Shape/size-based sorting** — bottle size class maps to packaging category (e.g. 250ml vs 500ml).
+The operator picks a sorting criterion, the vision system identifies and localizes each bottle, and the arm picks and places them into the correct bin automatically.
+ 
 ---
 
 ## 🚀 Key Features
@@ -26,6 +38,27 @@ The entire automation loop executes in milliseconds following this systematic pi
 
 ---
 
+## 🧭 Path Planning & Motion Safety Logic
+ 
+Every pick-and-place operation follows a fixed 7-step motion sequence, designed to avoid collisions with neighboring bottles and keep the arm's trajectory predictable:
+ 
+1. **Safety lift from home** — only runs once, at the start of a new batch, to clear the arm off the base before any motion begins.
+2. **Move above object** — the arm travels to the target's (X, Y) at a high Z, staying clear of any bottles in its path instead of cutting diagonally through the workspace.
+3. **Descend to object** — Z drops straight down onto the target, only once the arm is already correctly positioned above it.
+4. **Grip object** — the jaw closes on the bottle.
+5. **Vertical lift (safe height)** — the arm lifts straight up again before moving horizontally, so it doesn't drag the bottle sideways through other bottles.
+6. **Move to drop zone** — travels at the safe height to the bin corresponding to the detected flavour/size.
+7. **Release object** — jaw opens, bottle drops into the correct bin.
+Once every object in a locked batch has been sorted, the arm automatically returns home. This "always lift before moving sideways" rule is the core safety logic — it's a simple but effective way to avoid the arm clipping other bottles on a crowded tray without needing full obstacle-avoidance planning.
+ 
+Sorting is handled in two selectable modes:
+ 
+* **SHAPE mode** — detected class name is split into shape/colour tags, and shape drives the drop-zone selection.
+* **COLOUR mode** — same split, but colour drives the drop-zone selection instead.
+Each mode maps to a fixed set of drop coordinates, which are run through the same IK solver as the pick target to get the joint angles for the drop-off.
+ 
+---
+
 ## 📐 Mathematical Foundations (Inverse Kinematics)
 
 Instead of relying on heavy numerical solvers, the kinematics profile is computed analytically:
@@ -46,6 +79,18 @@ To match the alignment of the object ($\phi$) relative to the current physical p
 
 $$\theta_4 = \phi - (\theta_1 + \theta_2)$$
 
+---
+
+## 🔌 Communication Protocol
+ 
+Python and the Arduino stay in sync over a simple non-blocking serial protocol:
+ 
+* **Command packet:** `MOVE,J1,J2,Z,JAW\n` — joint angles in degrees, comma-delimited.
+* **State machine:** the Python controller sits in `IDLE` until a batch is locked in, then moves to `WAITING_DONE` after sending each command.
+* **Handshake:** the Arduino executes the move and replies with `DONE` once it finishes, which is what tells Python to pop the next command off the queue.
+* **Error handling:** if the Arduino reports `ERROR`, the current job and queue are cleared immediately and the controller resets to `IDLE` rather than continuing blindly.
+This keeps the Python side from ever "getting ahead" of the physical arm — every motion command waits for hardware confirmation before the next one is sent.
+ 
 ---
 
 ## ⚙️ Tech Stack & Components
@@ -132,8 +177,34 @@ python calibration.py
 ```
 This produces `calibration_matrix.npy`, which `scara_final.py` needs to run — skipping this step will cause the main script to fail on startup.
 
+> ⚠️ **Important:** Calibration is tied to the camera's exact position. Once calibrated, don't move or bump the camera — if you do, the homography mapping breaks and you'll need to re-run `calibration.py`. As long as the camera stays fixed, you only need to calibrate once.
+
 ### 7. Run the System
 With the Arduino connected and calibration done, launch the main control interface:
 ```bash
 python scara_final.py
 ```
+
+---
+ 
+## 🐛 Troubleshooting / Challenges Faced
+ 
+A few real issues that came up during development and testing:
+ 
+* **Calibration breaking after camera movement:** the homography matrix is only valid for the exact camera position it was calibrated at. Any accidental nudge to the camera mount throws off the pixel-to-mm mapping, and the arm starts missing targets. Fix is always the same — re-run calibration after any camera movement, and avoid touching the mount once it's calibrated.
+* **Detection center drifting under inconsistent lighting:** YOLO locates each bottle and uses the bounding box's center point as the pick target. Under uneven lighting or unexpected shadows, that center point can shift slightly from frame to frame, which occasionally causes the gripper to miss-grip. This isn't a mechanical or axis-calculation issue — it traces back to the detected bounding box itself shifting due to lighting, not a bug in the IK math.
+---
+ 
+## ⚠️ Limitations (Current)
+ 
+* **Camera position is fixed post-calibration** — the setup can't tolerate camera movement without a full recalibration pass.
+* **Lighting-sensitive detection** — poor lighting or harsh shadows can shift the detected center point enough to affect pick accuracy.
+* **No object-orientation-aware gripper alignment** — the $\phi$-based $\theta_4$ formula is defined but not yet implemented; the gripper currently holds a fixed world-frame orientation only.
+* **Static objects only** — the current pipeline assumes bottles are stationary when picked; no motion tracking yet.
+---
+ 
+## 🛣️ Future Roadmap
+ 
+* **Moving object pick-and-place:** extend the system to work with bottles moving on a conveyor belt, with the arm tracking and picking objects in motion rather than only static ones.
+* **Object-orientation-aware gripper alignment:** implement the $\phi$-based $\theta_4$ formula so the gripper can match a bottle's actual rotation instead of holding a fixed orientation.
+* **Lighting-robust detection:** improve the vision pipeline's tolerance to lighting variation to reduce center-point drift.
