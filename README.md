@@ -6,7 +6,7 @@ An advanced, open-architecture **4-DOF SCARA (Selective Compliance Assembly Robo
  
 ## 🧩 Problem Statement
  
-Picture a beverage bottling factory that produces multiple flavours across multiple bottle sizes on the same line. At some point in the process, batches get mixed — different flavours and sizes end up jumbled together on the same conveyor or storage crate. Sorting this by hand is slow, repetitive, and error-prone, especially at any real production volume.
+Imagine a beverage factory that produces multiple flavours across multiple bottle sizes. At some point for some production glitch in the process, batches get mixed into a single pile. Sorting this by hand is slow, repetitive, and error-prone, especially at any real production volume.
  
 This project tackles that problem with a camera-guided SCARA arm capable of **dual-mode sorting**:
  
@@ -191,7 +191,7 @@ python scara_final.py
  
 A few real issues that came up during development and testing:
  
-* **Calibration breaking after camera movement:** the homography matrix is only valid for the exact camera position it was calibrated at. Any accidental nudge to the camera mount throws off the pixel-to-mm mapping, and the arm starts missing targets. Fix is always the same — re-run calibration after any camera movement, and avoid touching the mount once it's calibrated.
+* **Calibration breaking after camera movement:** the homography matrix is only valid for the exact camera position it was calibrated at. Any accidental nudge to the camera mount throws off the pixel-to-mm mapping, and the arm starts missing targets. Fix is always the same, re-run calibration after any camera movement, and avoid touching the mount once it's calibrated.
 * **Detection center drifting under inconsistent lighting:** YOLO locates each bottle and uses the bounding box's center point as the pick target. Under uneven lighting or unexpected shadows, that center point can shift slightly from frame to frame, which occasionally causes the gripper to miss-grip. This isn't a mechanical or axis-calculation issue — it traces back to the detected bounding box itself shifting due to lighting, not a bug in the IK math.
 ---
  
@@ -205,6 +205,6 @@ A few real issues that came up during development and testing:
  
 ## 🛣️ Future Roadmap
  
-* **Moving object pick-and-place:** extend the system to work with bottles moving on a conveyor belt, with the arm tracking and picking objects in motion rather than only static ones.
+* **Moving object pick-and-place:** extend the system to work with objects moving on a conveyor belt, with the arm tracking and picking objects in motion rather than only static ones.
 * **Object-orientation-aware gripper alignment:** implement the $\phi$-based $\theta_4$ formula so the gripper can match a bottle's actual rotation instead of holding a fixed orientation.
 * **Lighting-robust detection:** improve the vision pipeline's tolerance to lighting variation to reduce center-point drift.
